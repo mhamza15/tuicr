@@ -140,6 +140,15 @@ fn run_editor(editor: &str, target: &EditorTarget) -> io::Result<ExitStatus> {
     Command::new(shell).arg("-c").arg(command).status()
 }
 
+/// Formats the result of refreshing the diff after an editor session.
+fn editor_reload_message(file_count: usize, invalidated_count: usize) -> String {
+    if invalidated_count > 0 {
+        format!("Reloaded {file_count} files, {invalidated_count} changed since last review")
+    } else {
+        format!("Reloaded {file_count} files")
+    }
+}
+
 /// Restores the terminal to the user's shell before an external editor runs.
 fn suspend_terminal_for_editor(
     terminal: &mut Terminal<CrosstermBackend<Box<dyn Write>>>,
@@ -205,15 +214,28 @@ fn open_current_file_in_editor(
     resume_terminal_after_editor(terminal, keyboard_enhancement_supported)?;
 
     match editor_status {
-        Ok(status) if status.success() => {
-            app.set_message(format!("Opened {}", target.path.display()));
-        }
-        Ok(status) => {
-            app.set_warning(format!("Editor exited with status {status}"));
-        }
         Err(e) => {
             app.set_error(format!("Failed to open editor: {e}"));
         }
+        Ok(status) => match app.reload_diff_files() {
+            Ok((count, invalidated)) if status.success() => {
+                app.set_message(editor_reload_message(count, invalidated));
+            }
+            Ok((count, invalidated)) => {
+                let reload_message = editor_reload_message(count, invalidated);
+                app.set_warning(format!(
+                    "Editor exited with status {status}; {reload_message}"
+                ));
+            }
+            Err(e) if status.success() => {
+                app.set_error(format!("Reload failed after editor: {e}"));
+            }
+            Err(e) => {
+                app.set_error(format!(
+                    "Editor exited with status {status}; reload failed: {e}"
+                ));
+            }
+        },
     }
 
     Ok(())
@@ -662,5 +684,18 @@ mod editor_tests {
     fn editor_command_should_quote_paths_for_the_shell() {
         let command = editor_command("nvim", &target("src/it's here.rs", Some(42)));
         assert_eq!(command, "nvim +42 'src/it'\\''s here.rs'");
+    }
+
+    #[test]
+    fn editor_reload_message_should_include_reloaded_file_count() {
+        assert_eq!(editor_reload_message(3, 0), "Reloaded 3 files");
+    }
+
+    #[test]
+    fn editor_reload_message_should_include_invalidated_review_count() {
+        assert_eq!(
+            editor_reload_message(3, 2),
+            "Reloaded 3 files, 2 changed since last review"
+        );
     }
 }

@@ -1,6 +1,6 @@
 [package]
 name = "tuicr"
-version = "0.10.0-mhamza.6"
+version = "0.10.0-mhamza.7"
 edition = "2024"
 description = "Review AI-generated diffs like a GitHub pull request, right from your terminal."
 license = "MIT"
