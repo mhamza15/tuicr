@@ -124,20 +124,6 @@ pub fn render_help(frame: &mut Frame, app: &mut App) {
         ]),
         Line::from(vec![
             Span::styled(
-                "  ;h/;l     ",
-                Style::default().add_modifier(Modifier::BOLD),
-            ),
-            Span::raw("Focus file list/diff"),
-        ]),
-        Line::from(vec![
-            Span::styled(
-                "  ;k/;j     ",
-                Style::default().add_modifier(Modifier::BOLD),
-            ),
-            Span::raw("Focus commit selector/diff"),
-        ]),
-        Line::from(vec![
-            Span::styled(
                 "  ;e        ",
                 Style::default().add_modifier(Modifier::BOLD),
             ),

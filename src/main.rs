@@ -326,30 +326,12 @@ fn main() -> anyhow::Result<()> {
                         // Otherwise fall through to normal handling
                     }
 
-                    // Handle pending ; command for panel focus, file list toggle, and review comments
+                    // Handle pending ; command for file list toggle and review comments
                     if pending_semicolon {
                         pending_semicolon = false;
                         match key.code {
                             crossterm::event::KeyCode::Char('e') => {
                                 app.toggle_file_list();
-                                continue;
-                            }
-                            crossterm::event::KeyCode::Char('h') => {
-                                app.focused_panel = app::FocusedPanel::FileList;
-                                continue;
-                            }
-                            crossterm::event::KeyCode::Char('l') => {
-                                app.focused_panel = app::FocusedPanel::Diff;
-                                continue;
-                            }
-                            crossterm::event::KeyCode::Char('k') => {
-                                if app.has_inline_commit_selector() {
-                                    app.focused_panel = app::FocusedPanel::CommitSelector;
-                                }
-                                continue;
-                            }
-                            crossterm::event::KeyCode::Char('j') => {
-                                app.focused_panel = app::FocusedPanel::Diff;
                                 continue;
                             }
                             crossterm::event::KeyCode::Char('c') => {

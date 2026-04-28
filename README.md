@@ -234,10 +234,6 @@ dist/
 | `Tab` / `Shift-Tab` | Toggle focus forward/backward between file list, diff, and commit selector |
 | `Ctrl-h` | Focus file list (left panel) |
 | `Ctrl-l` | Focus diff view (right panel) |
-| `;h` | Focus file list (left panel) |
-| `;l` | Focus diff view (right panel) |
-| `;k` | Focus commit selector (top panel) |
-| `;j` | Focus diff view |
 | `;e` | Toggle file list visibility |
 | `Enter` | Select file (when file list is focused) |
 
@@ -308,7 +304,7 @@ dist/
 
 #### Inline Commit Selector (multi-commit reviews)
 
-When reviewing multiple commits, an inline commit selector panel appears at the top of the diff view. Focus it with `;k` or `Tab`.
+When reviewing multiple commits, an inline commit selector panel appears at the top of the diff view. Focus it with `Tab`.
 
 | Key | Action |
 |-----|--------|

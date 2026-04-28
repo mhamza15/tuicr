@@ -135,17 +135,8 @@ fn map_normal_mode(key: KeyEvent) -> Action {
         // Panel focus
         (KeyCode::Tab, KeyModifiers::NONE) => Action::ToggleFocus,
         (KeyCode::BackTab, _) => Action::ToggleFocusReverse,
-        (KeyCode::Char('h' | 'H'), mods) if mods.contains(KeyModifiers::CONTROL) => {
-            Action::FocusFileList
-        }
-
-        // Terminals can encode Ctrl-h as Backspace or a raw control byte.
-        (KeyCode::Backspace, _) | (KeyCode::Char('\u{8}'), _) => Action::FocusFileList,
-
-        (KeyCode::Char('l' | 'L'), mods) if mods.contains(KeyModifiers::CONTROL) => {
-            Action::FocusDiff
-        }
-        (KeyCode::Char('\u{c}'), _) => Action::FocusDiff,
+        (KeyCode::Char('h'), KeyModifiers::CONTROL) => Action::FocusFileList,
+        (KeyCode::Char('l'), KeyModifiers::CONTROL) => Action::FocusDiff,
         (KeyCode::Enter, KeyModifiers::NONE) => Action::SelectFile,
         (KeyCode::Enter, KeyModifiers::SHIFT) => Action::SelectFileFull,
 
@@ -338,10 +329,6 @@ mod tests {
         KeyEvent::new(KeyCode::Char(c), KeyModifiers::CONTROL)
     }
 
-    fn key_ctrl_with_extra_mod(c: char) -> KeyEvent {
-        KeyEvent::new(KeyCode::Char(c), KeyModifiers::CONTROL | KeyModifiers::ALT)
-    }
-
     #[test]
     fn should_map_digit_keys_to_digit_action_in_normal_mode() {
         for d in 0..=9u8 {
@@ -422,38 +409,8 @@ mod tests {
     }
 
     #[test]
-    fn should_map_ctrl_h_with_extra_modifiers_to_focus_file_list_in_normal_mode() {
-        let action = map_normal_mode(key_ctrl_with_extra_mod('h'));
-        assert_eq!(action, Action::FocusFileList);
-    }
-
-    #[test]
-    fn should_map_backspace_to_focus_file_list_in_normal_mode() {
-        let action = map_normal_mode(key(KeyCode::Backspace));
-        assert_eq!(action, Action::FocusFileList);
-    }
-
-    #[test]
-    fn should_map_ctrl_h_raw_byte_to_focus_file_list_in_normal_mode() {
-        let action = map_normal_mode(key(KeyCode::Char('\u{8}')));
-        assert_eq!(action, Action::FocusFileList);
-    }
-
-    #[test]
     fn should_map_ctrl_l_to_focus_diff_in_normal_mode() {
         let action = map_normal_mode(key_ctrl('l'));
-        assert_eq!(action, Action::FocusDiff);
-    }
-
-    #[test]
-    fn should_map_ctrl_l_with_extra_modifiers_to_focus_diff_in_normal_mode() {
-        let action = map_normal_mode(key_ctrl_with_extra_mod('l'));
-        assert_eq!(action, Action::FocusDiff);
-    }
-
-    #[test]
-    fn should_map_ctrl_l_raw_byte_to_focus_diff_in_normal_mode() {
-        let action = map_normal_mode(key(KeyCode::Char('\u{c}')));
         assert_eq!(action, Action::FocusDiff);
     }
 

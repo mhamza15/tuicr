@@ -2413,7 +2413,7 @@ dependencies = [
 
 [[package]]
 name = "tuicr"
-version = "0.10.0-mhamza.2"
+version = "0.10.0-mhamza.3"
 dependencies = [
  "anyhow",
  "arboard",
