@@ -86,7 +86,6 @@ pub enum Action {
     /// Cycle inline commit selector to previous individual commit (`(`)
     CycleCommitPrev,
 
-    ToggleExpand,
     ExpandAll,
     CollapseAll,
     SelectFileFull,
@@ -146,7 +145,7 @@ fn map_normal_mode(key: KeyEvent) -> Action {
         (KeyCode::Char('l') | KeyCode::Right, KeyModifiers::NONE) => Action::ScrollRight(4),
 
         // Review actions
-        (KeyCode::Char('r'), KeyModifiers::NONE) => Action::ToggleReviewed,
+        (KeyCode::Char(' '), KeyModifiers::NONE) => Action::ToggleReviewed,
         (KeyCode::Char('e'), KeyModifiers::NONE) => Action::OpenCurrentFile,
         (KeyCode::Char('c'), KeyModifiers::NONE) => Action::AddLineComment,
         (KeyCode::Char('C'), _) => Action::AddFileComment,
@@ -166,7 +165,6 @@ fn map_normal_mode(key: KeyEvent) -> Action {
         // Quick quit
         (KeyCode::Char('q'), KeyModifiers::NONE) => Action::Quit,
 
-        (KeyCode::Char(' '), KeyModifiers::NONE) => Action::ToggleExpand,
         (KeyCode::Char('o'), KeyModifiers::NONE) => Action::ExpandAll,
         (KeyCode::Char('O'), _) => Action::CollapseAll,
 
@@ -420,6 +418,18 @@ mod tests {
     fn should_map_e_to_open_current_file_in_normal_mode() {
         let action = map_normal_mode(key(KeyCode::Char('e')));
         assert_eq!(action, Action::OpenCurrentFile);
+    }
+
+    #[test]
+    fn should_map_space_to_toggle_reviewed_in_normal_mode() {
+        let action = map_normal_mode(key(KeyCode::Char(' ')));
+        assert_eq!(action, Action::ToggleReviewed);
+    }
+
+    #[test]
+    fn should_not_map_r_to_toggle_reviewed_in_normal_mode() {
+        let action = map_normal_mode(key(KeyCode::Char('r')));
+        assert_eq!(action, Action::None);
     }
 
     #[test]

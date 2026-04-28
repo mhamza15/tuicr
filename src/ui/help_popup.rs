@@ -171,13 +171,6 @@ pub fn render_help(frame: &mut Frame, app: &mut App) {
         Line::from(""),
         Line::from(vec![
             Span::styled(
-                "  Space     ",
-                Style::default().add_modifier(Modifier::BOLD),
-            ),
-            Span::raw("Toggle expand directory"),
-        ]),
-        Line::from(vec![
-            Span::styled(
                 "  Enter     ",
                 Style::default().add_modifier(Modifier::BOLD),
             ),
@@ -205,7 +198,7 @@ pub fn render_help(frame: &mut Frame, app: &mut App) {
         Line::from(""),
         Line::from(vec![
             Span::styled(
-                "  r         ",
+                "  Space     ",
                 Style::default().add_modifier(Modifier::BOLD),
             ),
             Span::raw("Toggle file reviewed"),

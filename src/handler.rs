@@ -437,7 +437,7 @@ pub fn handle_commit_selector_action(app: &mut App, action: Action) {
         Action::CursorDown(_) => app.commit_select_down(),
         Action::CursorUp(_) => app.commit_select_up(),
         // Space/Enter toggle selection
-        Action::ToggleExpand | Action::ToggleCommitSelect | Action::SelectFile => {
+        Action::ToggleReviewed | Action::ToggleCommitSelect | Action::SelectFile => {
             app.toggle_commit_selection();
             if let Err(e) = app.reload_inline_selection() {
                 app.set_error(format!("Failed to load diff: {e}"));
@@ -494,7 +494,7 @@ pub fn handle_file_list_action(app: &mut App, action: Action) {
         Action::CursorUp(n) => app.file_list_up(n),
         Action::ScrollLeft(n) => app.file_list_state.scroll_left(n),
         Action::ScrollRight(n) => app.file_list_state.scroll_right(n),
-        Action::SelectFile | Action::ToggleExpand => {
+        Action::SelectFile => {
             if let Some(item) = app.get_selected_tree_item() {
                 match item {
                     FileTreeItem::Directory { path, .. } => app.toggle_directory(&path),

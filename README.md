@@ -222,7 +222,6 @@ dist/
 
 | Key | Action |
 |-----|--------|
-| `Space` | Toggle expand directory |
 | `Enter` | Expand directory / Jump to file in diff |
 | `o` | Expand all directories |
 | `O` | Collapse all directories |
@@ -241,7 +240,7 @@ dist/
 
 | Key | Action |
 |-----|--------|
-| `r` | Toggle file reviewed |
+| `Space` | Toggle file reviewed |
 | `e` | Open current file in `$VISUAL` or `$EDITOR` at the selected line |
 | `c` | Add line comment (or file comment if not on a diff line) |
 | `C` | Add file comment |
