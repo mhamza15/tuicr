@@ -27,6 +27,8 @@ pub enum Action {
     // Panel focus
     ToggleFocus,
     ToggleFocusReverse,
+    FocusFileList,
+    FocusDiff,
     SelectFile,
 
     // Review actions
@@ -133,6 +135,13 @@ fn map_normal_mode(key: KeyEvent) -> Action {
         // Panel focus
         (KeyCode::Tab, KeyModifiers::NONE) => Action::ToggleFocus,
         (KeyCode::BackTab, _) => Action::ToggleFocusReverse,
+        (KeyCode::Char('h'), KeyModifiers::CONTROL) => Action::FocusFileList,
+
+        // Some terminals encode Ctrl-h as Backspace unless keyboard enhancement
+        // flags are active, so normal mode treats both inputs as left-panel focus.
+        (KeyCode::Backspace, KeyModifiers::NONE) => Action::FocusFileList,
+
+        (KeyCode::Char('l'), KeyModifiers::CONTROL) => Action::FocusDiff,
         (KeyCode::Enter, KeyModifiers::NONE) => Action::SelectFile,
         (KeyCode::Enter, KeyModifiers::SHIFT) => Action::SelectFileFull,
 
@@ -321,6 +330,10 @@ mod tests {
         KeyEvent::new(KeyCode::Char(c), KeyModifiers::SHIFT)
     }
 
+    fn key_ctrl(c: char) -> KeyEvent {
+        KeyEvent::new(KeyCode::Char(c), KeyModifiers::CONTROL)
+    }
+
     #[test]
     fn should_map_digit_keys_to_digit_action_in_normal_mode() {
         for d in 0..=9u8 {
@@ -392,6 +405,24 @@ mod tests {
     fn should_map_backtab_to_reverse_focus_in_normal_mode() {
         let action = map_normal_mode(KeyEvent::new(KeyCode::BackTab, KeyModifiers::SHIFT));
         assert_eq!(action, Action::ToggleFocusReverse);
+    }
+
+    #[test]
+    fn should_map_ctrl_h_to_focus_file_list_in_normal_mode() {
+        let action = map_normal_mode(key_ctrl('h'));
+        assert_eq!(action, Action::FocusFileList);
+    }
+
+    #[test]
+    fn should_map_backspace_to_focus_file_list_in_normal_mode() {
+        let action = map_normal_mode(key(KeyCode::Backspace));
+        assert_eq!(action, Action::FocusFileList);
+    }
+
+    #[test]
+    fn should_map_ctrl_l_to_focus_diff_in_normal_mode() {
+        let action = map_normal_mode(key_ctrl('l'));
+        assert_eq!(action, Action::FocusDiff);
     }
 
     #[test]

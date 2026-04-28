@@ -610,6 +610,12 @@ fn handle_shared_normal_action(app: &mut App, action: Action) {
                 (FocusedPanel::CommitSelector, _) => FocusedPanel::Diff,
             };
         }
+        Action::FocusFileList => {
+            app.focused_panel = FocusedPanel::FileList;
+        }
+        Action::FocusDiff => {
+            app.focused_panel = FocusedPanel::Diff;
+        }
         Action::ExpandAll => {
             app.expand_all_dirs();
             app.set_message("All directories expanded");

@@ -232,6 +232,8 @@ dist/
 | Key | Action |
 |-----|--------|
 | `Tab` / `Shift-Tab` | Toggle focus forward/backward between file list, diff, and commit selector |
+| `Ctrl-h` | Focus file list (left panel) |
+| `Ctrl-l` | Focus diff view (right panel) |
 | `;h` | Focus file list (left panel) |
 | `;l` | Focus diff view (right panel) |
 | `;k` | Focus commit selector (top panel) |
