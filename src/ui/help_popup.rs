@@ -215,7 +215,7 @@ pub fn render_help(frame: &mut Frame, app: &mut App) {
                 "  e         ",
                 Style::default().add_modifier(Modifier::BOLD),
             ),
-            Span::raw("Open current file in editor"),
+            Span::raw("Open current file in editor at cursor"),
         ]),
         Line::from(vec![
             Span::styled(

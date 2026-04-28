@@ -49,8 +49,16 @@ const CTRL_C_EXIT_TIMEOUT: Duration = Duration::from_secs(2);
 /// Hide the file list by default on narrow terminals.
 const MIN_WIDTH_FOR_FILE_LIST: u16 = 100;
 
-/// Resolves the file that should be opened for the current normal-mode focus.
-fn current_editor_path(app: &App) -> Option<PathBuf> {
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct EditorTarget {
+    /// Absolute path to the file that should be opened.
+    path: PathBuf,
+    /// Source line under the diff cursor, when the cursor is on a source line.
+    line: Option<u32>,
+}
+
+/// Resolves the file and source line that should be opened for the current focus.
+fn current_editor_target(app: &App) -> Option<EditorTarget> {
     let file = match app.focused_panel {
         FocusedPanel::FileList => match app.get_selected_tree_item() {
             Some(FileTreeItem::File { file_idx, .. }) => app.diff_files.get(file_idx),
@@ -63,7 +71,16 @@ fn current_editor_path(app: &App) -> Option<PathBuf> {
         return None;
     }
 
-    Some(app.vcs_info.root_path.join(file.display_path()))
+    let line = if app.focused_panel == FocusedPanel::Diff {
+        app.get_line_at_cursor().map(|(line, _side)| line)
+    } else {
+        None
+    };
+
+    Some(EditorTarget {
+        path: app.vcs_info.root_path.join(file.display_path()),
+        line,
+    })
 }
 
 /// Returns the editor command configured by the user's environment.
@@ -80,10 +97,45 @@ fn shell_quote(value: &str) -> String {
     format!("'{}'", value.replace('\'', "'\\''"))
 }
 
+/// Returns the first shell token from the configured editor command.
+fn editor_program_name(editor: &str) -> &str {
+    editor
+        .split_whitespace()
+        .next()
+        .and_then(|program| Path::new(program).file_name())
+        .and_then(|name| name.to_str())
+        .unwrap_or(editor)
+}
+
+/// Builds a best-effort editor invocation for opening the target line.
+fn editor_command(editor: &str, target: &EditorTarget) -> String {
+    let path = target.path.to_string_lossy();
+
+    let Some(line) = target.line else {
+        return format!("{editor} {}", shell_quote(&path));
+    };
+
+    let path_with_line = format!("{path}:{line}");
+    let program = editor_program_name(editor);
+
+    if matches!(
+        program,
+        "code" | "code-insiders" | "codium" | "cursor" | "windsurf"
+    ) {
+        return format!("{editor} --goto {}", shell_quote(&path_with_line));
+    }
+
+    if matches!(program, "zed" | "hx" | "helix") {
+        return format!("{editor} {}", shell_quote(&path_with_line));
+    }
+
+    format!("{editor} +{line} {}", shell_quote(&path))
+}
+
 /// Runs the configured editor command with the target file path appended.
-fn run_editor(editor: &str, path: &Path) -> io::Result<ExitStatus> {
+fn run_editor(editor: &str, target: &EditorTarget) -> io::Result<ExitStatus> {
     let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".to_string());
-    let command = format!("{editor} {}", shell_quote(&path.to_string_lossy()));
+    let command = editor_command(editor, target);
 
     Command::new(shell).arg("-c").arg(command).status()
 }
@@ -130,13 +182,16 @@ fn open_current_file_in_editor(
     terminal: &mut Terminal<CrosstermBackend<Box<dyn Write>>>,
     keyboard_enhancement_supported: bool,
 ) -> anyhow::Result<()> {
-    let Some(path) = current_editor_path(app) else {
+    let Some(target) = current_editor_target(app) else {
         app.set_warning("No file to open");
         return Ok(());
     };
 
-    if !path.exists() {
-        app.set_warning(format!("Cannot open missing file: {}", path.display()));
+    if !target.path.exists() {
+        app.set_warning(format!(
+            "Cannot open missing file: {}",
+            target.path.display()
+        ));
         return Ok(());
     }
 
@@ -146,12 +201,12 @@ fn open_current_file_in_editor(
     };
 
     suspend_terminal_for_editor(terminal, keyboard_enhancement_supported)?;
-    let editor_status = run_editor(&editor, &path);
+    let editor_status = run_editor(&editor, &target);
     resume_terminal_after_editor(terminal, keyboard_enhancement_supported)?;
 
     match editor_status {
         Ok(status) if status.success() => {
-            app.set_message(format!("Opened {}", path.display()));
+            app.set_message(format!("Opened {}", target.path.display()));
         }
         Ok(status) => {
             app.set_warning(format!("Editor exited with status {status}"));
@@ -560,4 +615,52 @@ fn main() -> anyhow::Result<()> {
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod editor_tests {
+    use super::*;
+
+    fn target(path: &str, line: Option<u32>) -> EditorTarget {
+        EditorTarget {
+            path: PathBuf::from(path),
+            line,
+        }
+    }
+
+    #[test]
+    fn editor_command_should_open_without_line_when_no_source_line_is_selected() {
+        let command = editor_command("nvim", &target("src/main.rs", None));
+        assert_eq!(command, "nvim 'src/main.rs'");
+    }
+
+    #[test]
+    fn editor_command_should_use_plus_line_for_terminal_editors() {
+        let command = editor_command("nvim", &target("src/main.rs", Some(42)));
+        assert_eq!(command, "nvim +42 'src/main.rs'");
+    }
+
+    #[test]
+    fn editor_command_should_preserve_editor_arguments() {
+        let command = editor_command("nvim --clean", &target("src/main.rs", Some(42)));
+        assert_eq!(command, "nvim --clean +42 'src/main.rs'");
+    }
+
+    #[test]
+    fn editor_command_should_use_goto_for_vscode_style_editors() {
+        let command = editor_command("code --wait", &target("src/main.rs", Some(42)));
+        assert_eq!(command, "code --wait --goto 'src/main.rs:42'");
+    }
+
+    #[test]
+    fn editor_command_should_use_path_line_for_helix_style_editors() {
+        let command = editor_command("hx", &target("src/main.rs", Some(42)));
+        assert_eq!(command, "hx 'src/main.rs:42'");
+    }
+
+    #[test]
+    fn editor_command_should_quote_paths_for_the_shell() {
+        let command = editor_command("nvim", &target("src/it's here.rs", Some(42)));
+        assert_eq!(command, "nvim +42 'src/it'\\''s here.rs'");
+    }
 }
