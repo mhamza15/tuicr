@@ -201,7 +201,7 @@ pub fn render_help(frame: &mut Frame, app: &mut App) {
                 "  Space     ",
                 Style::default().add_modifier(Modifier::BOLD),
             ),
-            Span::raw("Toggle file reviewed"),
+            Span::raw("Toggle reviewed and select next file"),
         ]),
         Line::from(vec![
             Span::styled(

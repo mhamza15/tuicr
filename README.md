@@ -240,7 +240,7 @@ dist/
 
 | Key | Action |
 |-----|--------|
-| `Space` | Toggle file reviewed |
+| `Space` | Toggle file reviewed and select next file |
 | `e` | Open current file in `$VISUAL` or `$EDITOR` at the selected line |
 | `c` | Add line comment (or file comment if not on a diff line) |
 | `C` | Add file comment |

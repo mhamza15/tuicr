@@ -506,9 +506,7 @@ pub fn handle_file_list_action(app: &mut App, action: Action) {
             }
         }
         Action::ToggleReviewed => {
-            if let Some(FileTreeItem::File { file_idx, .. }) = app.get_selected_tree_item() {
-                app.toggle_reviewed_for_file_idx(file_idx, false);
-            } else {
+            if !app.toggle_selected_tree_file_reviewed_and_select_next() {
                 app.set_warning("Select a file to toggle reviewed");
             }
         }
@@ -591,7 +589,7 @@ fn handle_shared_normal_action(app: &mut App, action: Action) {
         Action::PrevFile => app.prev_file(),
         Action::NextHunk => app.next_hunk(),
         Action::PrevHunk => app.prev_hunk(),
-        Action::ToggleReviewed => app.toggle_reviewed(),
+        Action::ToggleReviewed => app.toggle_reviewed_and_select_next_file(),
         Action::ToggleFocus => {
             let has_selector = app.has_inline_commit_selector();
             app.focused_panel = match (app.focused_panel, has_selector) {

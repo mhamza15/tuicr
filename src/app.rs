@@ -1515,22 +1515,49 @@ impl App {
         self.current_file().map(|f| f.display_path())
     }
 
-    pub fn toggle_reviewed(&mut self) {
+    pub fn toggle_reviewed_and_select_next_file(&mut self) {
         let file_idx = self.diff_state.current_file_idx;
-        self.toggle_reviewed_for_file_idx(file_idx, true);
+        let tree_idx = self.file_idx_to_tree_idx(file_idx);
+        let marked_reviewed = self.toggle_reviewed_for_file_idx(file_idx, true) == Some(true);
+
+        if marked_reviewed && let Some(tree_idx) = tree_idx {
+            self.select_next_file_after_tree_idx(tree_idx, true);
+        }
     }
 
-    pub fn toggle_reviewed_for_file_idx(&mut self, file_idx: usize, adjust_cursor: bool) {
+    pub fn toggle_selected_tree_file_reviewed_and_select_next(&mut self) -> bool {
+        let selected_tree_idx = self.file_list_state.selected();
+
+        let Some(FileTreeItem::File { file_idx, .. }) = self.get_selected_tree_item() else {
+            return false;
+        };
+
+        let marked_reviewed = self.toggle_reviewed_for_file_idx(file_idx, false) == Some(true);
+
+        if marked_reviewed {
+            self.select_next_file_after_tree_idx(selected_tree_idx, false);
+        }
+
+        true
+    }
+
+    pub fn toggle_reviewed_for_file_idx(
+        &mut self,
+        file_idx: usize,
+        adjust_cursor: bool,
+    ) -> Option<bool> {
         let Some(path) = self
             .diff_files
             .get(file_idx)
             .map(|file| file.display_path().clone())
         else {
-            return;
+            return None;
         };
 
         if let Some(review) = self.session.get_file_mut(&path) {
             review.reviewed = !review.reviewed;
+            let reviewed = review.reviewed;
+
             self.dirty = true;
             self.rebuild_annotations();
 
@@ -1541,7 +1568,11 @@ impl App {
                 self.diff_state.cursor_line = header_line;
                 self.ensure_cursor_visible();
             }
+
+            return Some(reviewed);
         }
+
+        None
     }
 
     pub fn file_count(&self) -> usize {
@@ -2000,6 +2031,38 @@ impl App {
             }
         }
         None
+    }
+
+    fn next_file_item_after(
+        visible_items: &[FileTreeItem],
+        tree_idx: usize,
+    ) -> Option<(usize, usize)> {
+        visible_items
+            .iter()
+            .enumerate()
+            .skip(tree_idx.saturating_add(1))
+            .find_map(|(next_tree_idx, item)| match item {
+                FileTreeItem::File { file_idx, .. } => Some((next_tree_idx, *file_idx)),
+                FileTreeItem::Directory { .. } => None,
+            })
+    }
+
+    fn select_next_file_after_tree_idx(&mut self, tree_idx: usize, jump_to_file: bool) -> bool {
+        let visible_items = self.build_visible_items();
+
+        let Some((next_tree_idx, next_file_idx)) =
+            Self::next_file_item_after(&visible_items, tree_idx)
+        else {
+            return false;
+        };
+
+        if jump_to_file {
+            self.jump_to_file(next_file_idx);
+        } else {
+            self.file_list_state.select(next_tree_idx);
+        }
+
+        true
     }
 
     pub fn next_hunk(&mut self) {
@@ -4390,6 +4453,38 @@ mod tree_tests {
         h.toggle("src"); // collapse src
 
         assert_eq!(h.visible_file_count(), 1); // only tests/test.rs
+    }
+
+    #[test]
+    fn next_file_item_after_skips_directory_rows() {
+        let mut h = TreeTestHarness::new(&["src/app.rs", "tests/test.rs"]);
+        h.expand_all();
+
+        let items = h.build_visible_items();
+        let selected_tree_idx = items
+            .iter()
+            .position(|item| matches!(item, FileTreeItem::File { file_idx: 0, .. }))
+            .expect("first file should be visible");
+
+        let next = App::next_file_item_after(&items, selected_tree_idx);
+
+        assert_eq!(next, Some((3, 1)));
+    }
+
+    #[test]
+    fn next_file_item_after_does_not_wrap_at_last_file() {
+        let mut h = TreeTestHarness::new(&["src/app.rs", "tests/test.rs"]);
+        h.expand_all();
+
+        let items = h.build_visible_items();
+        let selected_tree_idx = items
+            .iter()
+            .position(|item| matches!(item, FileTreeItem::File { file_idx: 1, .. }))
+            .expect("last file should be visible");
+
+        let next = App::next_file_item_after(&items, selected_tree_idx);
+
+        assert_eq!(next, None);
     }
 }
 
