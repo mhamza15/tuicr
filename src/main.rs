@@ -17,6 +17,8 @@ mod vcs;
 
 use std::fs::File;
 use std::io::{self, Write};
+use std::path::{Path, PathBuf};
+use std::process::{Command, ExitStatus};
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
@@ -33,7 +35,7 @@ use crossterm::{
 };
 use ratatui::{Terminal, backend::CrosstermBackend};
 
-use app::{App, FocusedPanel, InputMode};
+use app::{App, FileTreeItem, FocusedPanel, InputMode};
 use handler::{
     handle_command_action, handle_comment_action, handle_commit_select_action,
     handle_commit_selector_action, handle_confirm_action, handle_diff_action,
@@ -46,6 +48,121 @@ use theme::{parse_cli_args, resolve_theme_with_config};
 const CTRL_C_EXIT_TIMEOUT: Duration = Duration::from_secs(2);
 /// Hide the file list by default on narrow terminals.
 const MIN_WIDTH_FOR_FILE_LIST: u16 = 100;
+
+/// Resolves the file that should be opened for the current normal-mode focus.
+fn current_editor_path(app: &App) -> Option<PathBuf> {
+    let file = match app.focused_panel {
+        FocusedPanel::FileList => match app.get_selected_tree_item() {
+            Some(FileTreeItem::File { file_idx, .. }) => app.diff_files.get(file_idx),
+            _ => app.current_file(),
+        },
+        FocusedPanel::Diff | FocusedPanel::CommitSelector => app.current_file(),
+    }?;
+
+    if file.is_commit_message {
+        return None;
+    }
+
+    Some(app.vcs_info.root_path.join(file.display_path()))
+}
+
+/// Returns the editor command configured by the user's environment.
+fn configured_editor() -> Option<String> {
+    std::env::var("VISUAL")
+        .ok()
+        .or_else(|| std::env::var("EDITOR").ok())
+        .map(|editor| editor.trim().to_string())
+        .filter(|editor| !editor.is_empty())
+}
+
+/// Quotes a path as a single POSIX shell word.
+fn shell_quote(value: &str) -> String {
+    format!("'{}'", value.replace('\'', "'\\''"))
+}
+
+/// Runs the configured editor command with the target file path appended.
+fn run_editor(editor: &str, path: &Path) -> io::Result<ExitStatus> {
+    let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".to_string());
+    let command = format!("{editor} {}", shell_quote(&path.to_string_lossy()));
+
+    Command::new(shell).arg("-c").arg(command).status()
+}
+
+/// Restores the terminal to the user's shell before an external editor runs.
+fn suspend_terminal_for_editor(
+    terminal: &mut Terminal<CrosstermBackend<Box<dyn Write>>>,
+    keyboard_enhancement_supported: bool,
+) -> anyhow::Result<()> {
+    if keyboard_enhancement_supported {
+        execute!(terminal.backend_mut(), PopKeyboardEnhancementFlags)?;
+    }
+
+    terminal.show_cursor()?;
+    disable_raw_mode()?;
+    execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
+
+    Ok(())
+}
+
+/// Restores the TUI after the external editor exits.
+fn resume_terminal_after_editor(
+    terminal: &mut Terminal<CrosstermBackend<Box<dyn Write>>>,
+    keyboard_enhancement_supported: bool,
+) -> anyhow::Result<()> {
+    enable_raw_mode()?;
+    execute!(terminal.backend_mut(), EnterAlternateScreen)?;
+
+    if keyboard_enhancement_supported {
+        execute!(
+            terminal.backend_mut(),
+            PushKeyboardEnhancementFlags(KeyboardEnhancementFlags::DISAMBIGUATE_ESCAPE_CODES)
+        )?;
+    }
+
+    terminal.clear()?;
+
+    Ok(())
+}
+
+/// Opens the current file in the configured editor and returns to the TUI.
+fn open_current_file_in_editor(
+    app: &mut App,
+    terminal: &mut Terminal<CrosstermBackend<Box<dyn Write>>>,
+    keyboard_enhancement_supported: bool,
+) -> anyhow::Result<()> {
+    let Some(path) = current_editor_path(app) else {
+        app.set_warning("No file to open");
+        return Ok(());
+    };
+
+    if !path.exists() {
+        app.set_warning(format!("Cannot open missing file: {}", path.display()));
+        return Ok(());
+    }
+
+    let Some(editor) = configured_editor() else {
+        app.set_warning("Set VISUAL or EDITOR to open files");
+        return Ok(());
+    };
+
+    suspend_terminal_for_editor(terminal, keyboard_enhancement_supported)?;
+    let editor_status = run_editor(&editor, &path);
+    resume_terminal_after_editor(terminal, keyboard_enhancement_supported)?;
+
+    match editor_status {
+        Ok(status) if status.success() => {
+            app.set_message(format!("Opened {}", path.display()));
+        }
+        Ok(status) => {
+            app.set_warning(format!("Editor exited with status {status}"));
+        }
+        Err(e) => {
+            app.set_error(format!("Failed to open editor: {e}"));
+        }
+    }
+
+    Ok(())
+}
 
 fn main() -> anyhow::Result<()> {
     // Setup panic hook to restore terminal on panic
@@ -368,6 +485,17 @@ fn main() -> anyhow::Result<()> {
                             continue;
                         }
                         _ => {}
+                    }
+
+                    if app.input_mode == InputMode::Normal
+                        && matches!(action, Action::OpenCurrentFile)
+                    {
+                        open_current_file_in_editor(
+                            &mut app,
+                            &mut terminal,
+                            keyboard_enhancement_supported,
+                        )?;
+                        continue;
                     }
 
                     // Handle digit accumulation for {N}G jump-to-line (Normal mode only)

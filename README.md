@@ -242,6 +242,7 @@ dist/
 | Key | Action |
 |-----|--------|
 | `r` | Toggle file reviewed |
+| `e` | Open current file in `$VISUAL` or `$EDITOR` |
 | `c` | Add line comment (or file comment if not on a diff line) |
 | `C` | Add file comment |
 | `;c` | Add review comment |

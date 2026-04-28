@@ -33,6 +33,7 @@ pub enum Action {
 
     // Review actions
     ToggleReviewed,
+    OpenCurrentFile,
     AddLineComment,
     AddFileComment,
     EditComment,
@@ -146,6 +147,7 @@ fn map_normal_mode(key: KeyEvent) -> Action {
 
         // Review actions
         (KeyCode::Char('r'), KeyModifiers::NONE) => Action::ToggleReviewed,
+        (KeyCode::Char('e'), KeyModifiers::NONE) => Action::OpenCurrentFile,
         (KeyCode::Char('c'), KeyModifiers::NONE) => Action::AddLineComment,
         (KeyCode::Char('C'), _) => Action::AddFileComment,
         (KeyCode::Char('i'), KeyModifiers::NONE) => Action::EditComment,
@@ -412,6 +414,12 @@ mod tests {
     fn should_map_ctrl_l_to_focus_diff_in_normal_mode() {
         let action = map_normal_mode(key_ctrl('l'));
         assert_eq!(action, Action::FocusDiff);
+    }
+
+    #[test]
+    fn should_map_e_to_open_current_file_in_normal_mode() {
+        let action = map_normal_mode(key(KeyCode::Char('e')));
+        assert_eq!(action, Action::OpenCurrentFile);
     }
 
     #[test]

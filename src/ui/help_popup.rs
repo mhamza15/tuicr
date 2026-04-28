@@ -212,6 +212,13 @@ pub fn render_help(frame: &mut Frame, app: &mut App) {
         ]),
         Line::from(vec![
             Span::styled(
+                "  e         ",
+                Style::default().add_modifier(Modifier::BOLD),
+            ),
+            Span::raw("Open current file in editor"),
+        ]),
+        Line::from(vec![
+            Span::styled(
                 "  c         ",
                 Style::default().add_modifier(Modifier::BOLD),
             ),
